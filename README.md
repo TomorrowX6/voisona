@@ -28,6 +28,7 @@ VoiSona (Techno-Speech, inc.) v1.18.0.5 的 DRM/API 逆向分析成果与试用�
 | p8 | `0x140B3B63A` | `80 F1 01` | `B1 01 90` | **导出曲目包含**：`!isTrial` → 恒包含 |
 | p9 | `0x140B07326` | `0F 85 05 03 00 00` | `90 ×6` | 移除「试用&&导出→跳过渲染」 |
 | p10 | `0x140B0F260` | `F2 0F 59 05 88 8B 69 00` | `F2 0F 59 05 C8 8D 69 00` | 导出时长计算 ×10 → ×100000 |
+| p11 | `0x140A01A60` | `48 89 5C 24 08 ...` | `B0 01 C3` + `90×91` | **跳过登录**：`isAuthenticated()` 恒返回 true |
 
 ## 使用方法
 
@@ -54,6 +55,7 @@ powershell -ExecutionPolicy Bypass -File patches\deploy_patch.ps1
 ├── patches/
 │   ├── apply_all_patch.ps1      # p1-p7（播放限制）
 │   ├── apply_export_patch.ps1   # p8-p10（导出限制）
+│   ├── apply_auth_patch.ps1     # p11（跳过登录）
 │   ├── verify_final.ps1         # 校验全部 10 处补丁
 │   └── deploy_patch.ps1         # 部署到 Program Files（需管理员）
 ├── tools/
