@@ -1,0 +1,44 @@
+// VoiSona license/ownership capture v11 - null-guarded
+RedirectLog "C:\Users\abc\Desktop\dev\qaz123\voisona_dump\dbgcap\x64dbg_log.txt"
+log "CAPTURE SCRIPT STARTED"
+
+config Events, TlsCallbacks, 0
+config Events, TlsCallbacksSystem, 0
+config Events, EntryBreakpoint, 0
+
+InitDebug "C:\Program Files\Techno-Speech\VoiSona\VoiSona.exe"
+log "InitDebug done"
+HideDebugger
+
+// selftest
+bp GetTickCount, "selftest", ss
+SetBreakpointCondition GetTickCount, "0"
+SetBreakpointCommand GetTickCount, "savedata \"C:\\Users\\abc\\Desktop\\dev\\qaz123\\voisona_dump\\dbgcap\\selftest_ok.bin\", csp, 8"
+
+// request path
+bp HttpOpenRequestW
+SetBreakpointCondition HttpOpenRequestW, "0"
+SetBreakpointCommand HttpOpenRequestW, "savedata \"C:\\Users\\abc\\Desktop\\dev\\qaz123\\voisona_dump\\dbgcap\\reqpath_{x:GetTickCount()}.txt\", r8, 1000"
+
+// POST body
+bp InternetWriteFile
+SetBreakpointCondition InternetWriteFile, "0"
+SetBreakpointCommand InternetWriteFile, "savedata \"C:\\Users\\abc\\Desktop\\dev\\qaz123\\voisona_dump\\dbgcap\\reqbody_{x:GetTickCount()}.txt\", rdx, 3000"
+
+// Mozart API response (r14 = buffer) - guarded
+bp mod.main()+A026FB
+SetBreakpointCondition mod.main()+A026FB, "r14!=0"
+SetBreakpointCommand mod.main()+A026FB, "savedata \"C:\\Users\\abc\\Desktop\\dev\\qaz123\\voisona_dump\\dbgcap\\mzresp_{x:GetTickCount()}.bin\", r14, 2000"
+
+// JUCE stream response (rdi = buffer) - guarded
+bp mod.main()+C4525D
+SetBreakpointCondition mod.main()+C4525D, "rdi!=0"
+SetBreakpointCommand mod.main()+C4525D, "savedata \"C:\\Users\\abc\\Desktop\\dev\\qaz123\\voisona_dump\\dbgcap\\juceresp_{x:GetTickCount()}.bin\", rdi, 2000"
+
+// third read site (rsi = buffer) - guarded
+bp mod.main()+C04548
+SetBreakpointCondition mod.main()+C04548, "rsi!=0"
+SetBreakpointCommand mod.main()+C04548, "savedata \"C:\\Users\\abc\\Desktop\\dev\\qaz123\\voisona_dump\\dbgcap\\resp3_{x:GetTickCount()}.bin\", rsi, 2000"
+
+log "license-capture breakpoints set, resuming"
+run

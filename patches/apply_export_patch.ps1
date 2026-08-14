@@ -1,0 +1,33 @@
+﻿$exe = Join-Path $PSScriptRoot "VoiSona.exe"
+$bytes = [System.IO.File]::ReadAllBytes($exe)
+$ok = $true
+$TARGET = 0x1411A8030
+
+# #8: export track inclusion: xor cl,1 -> mov cl,1 (always include trial tracks in mixdown)
+$fo8 = 0x400 + (0x140B3B63A - 0x140001000)
+$o8 = ($bytes[$fo8..($fo8+2)] | ForEach-Object { $_.ToString('X2') }) -join ' '
+if($o8 -ne '80 F1 01'){ Write-Output "MISMATCH #8: $o8"; $ok = $false }
+else { $bytes[$fo8]=0xB1; $bytes[$fo8+1]=0x01; $bytes[$fo8+2]=0x90; Write-Output "#8 0x140B3B63A: 80 F1 01 -> B1 01 90" }
+
+# #9: remove trial&&flag render skip: jne -> nops
+$fo9 = 0x400 + (0x140B07326 - 0x140001000)
+$o9 = ($bytes[$fo9..($fo9+5)] | ForEach-Object { $_.ToString('X2') }) -join ' '
+if($o9 -ne '0F 85 05 03 00 00'){ Write-Output "MISMATCH #9: $o9"; $ok = $false }
+else { for($i=0;$i -lt 6;$i++){ $bytes[$fo9+$i]=0x90 }; Write-Output "#9 0x140B07326: jne -> NOPx6" }
+
+# #10: trial length mulsd 10.0 -> 100000.0
+$fo10 = 0x400 + (0x140B0F260 - 0x140001000)
+$o10 = ($bytes[$fo10..($fo10+7)] | ForEach-Object { $_.ToString('X2') }) -join ' '
+if($o10 -ne 'F2 0F 59 05 88 8B 69 00'){ Write-Output "MISMATCH #10: $o10"; $ok = $false }
+else {
+  $bytes[$fo10+4]=0xC8; $bytes[$fo10+5]=0x8D; $bytes[$fo10+6]=0x69; $bytes[$fo10+7]=0x00
+  $disp = [BitConverter]::ToInt32($bytes, $fo10+4)
+  $tgt = (0x140B0F260 + 8) + $disp
+  if($tgt -ne $TARGET){ Write-Output "TARGET WRONG: 0x$($tgt.ToString('X'))"; $ok = $false }
+  else { Write-Output "#10 0x140B0F260: mulsd -> 100000.0 (target OK)" }
+}
+
+if($ok){
+  [System.IO.File]::WriteAllBytes($exe, $bytes)
+  Write-Output "PATCHES #8-#10 APPLIED"
+} else { Write-Output "ABORTED" }
