@@ -37,20 +37,26 @@ Write-Output "p14: voice-list refresh runs without mail (local voices listed on 
 # --- p15 (EXPERIMENTAL): embedded default credentials ---
 # UpdateLicenseInfo @ 0x140B36530 skips login when config mail/license empty.
 # p15 overwrites the two string slots with .data pointers so a fresh install
-# auto-logs-in. NOTE: the app's string serialization is protected (special
-# layout), the login body gets corrupted - p15 is OFF by default; use
-# seed_config.ps1 instead. Only applied when -Email/-LicenseKey are passed.
+# auto-logs-in with the embedded credentials. Strings are laid out in the
+# app's refcounted-string format: {refCount(4)@-0x10, pad(4)@-0xC,
+# capacity(8)@-0x8 = (strlen+1) rounded up to 4, data} - placed in a .data
+# alignment-padding hole (0x141343B46, 442-byte zero region) that the app
+# never writes. Verified: login body serializes correctly and the full
+# activation chain runs. Only applied when -Email/-LicenseKey are passed.
 if($Email -ne "" -and $LicenseKey -ne ""){
   $dataVMA = 0x14133C000; $dataFO = 0x133a600
-  $mailVMA = 0x141345F35
-  $licVMA  = 0x141345F35 + 0x50
+  $mailVMA = 0x141343B46
+  $licVMA  = 0x141343B46 + 0x50
   function WriteDataStr($vma, [string]$s){
     $fo = $dataFO + ($vma - $dataVMA)
     $enc = [System.Text.Encoding]::ASCII.GetBytes($s)
     if($enc.Length -gt 0x4F){ Write-Output "string too long: $s"; exit 1 }
-    [BitConverter]::GetBytes([int]10).CopyTo($bytes, $fo - 0x10)
-    [BitConverter]::GetBytes([int]10).CopyTo($bytes, $fo - 0xC)
-    [BitConverter]::GetBytes([int64]$enc.Length).CopyTo($bytes, $fo - 0x8)
+    # mimic real layout: refCount@-0x10, pad@-0xC, capacity@-0x8 (=strlen+1 rounded to 4)
+    $cap = $enc.Length + 1
+    if($cap % 4 -ne 0){ $cap += 4 - ($cap % 4) }
+    [BitConverter]::GetBytes([int]2).CopyTo($bytes, $fo - 0x10)
+    [BitConverter]::GetBytes([int]0).CopyTo($bytes, $fo - 0xC)
+    [BitConverter]::GetBytes([int64]$cap).CopyTo($bytes, $fo - 0x8)
     $enc.CopyTo($bytes, $fo)
     $bytes[$fo + $enc.Length] = 0
   }
@@ -63,10 +69,14 @@ if($Email -ne "" -and $LicenseKey -ne ""){
   $dispLic  = $licVMA  - (0x140B36583 + 7)
   $patch15 = @(0x48,0x8D,0x05) + [BitConverter]::GetBytes([int]$dispMail) + @(0x48,0x89,0x45,0x77) + @(0x48,0x8D,0x05) + [BitConverter]::GetBytes([int]$dispLic) + @(0x48,0x89,0x45,0x7F) + @(0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90)
   for($i=0; $i -lt 30; $i++){ $bytes[$fo15+$i] = $patch15[$i] }
-  Write-Output "p15: embedded credentials (EXPERIMENTAL, serialization broken)"
+  Write-Output "p15: embedded credentials (auto-login on fresh install)"
 } else {
   Write-Output "p15 SKIPPED (no -Email/-LicenseKey given)"
 }
 
 [System.IO.File]::WriteAllBytes($exe, $bytes)
 Write-Output "auth patches applied: p11 + p13 + p14"
+
+
+
+
