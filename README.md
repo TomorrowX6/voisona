@@ -31,6 +31,8 @@ VoiSona (Techno-Speech, inc.) v1.18.0.5 的 DRM/API 逆向分析成果与试用�
 | p11 | `0x140A01A60` | `48 89 5C 24 08 ...` | `B0 01 C3` + `90×91` | **跳过登录**：`isAuthenticated()` 恒返回 true |
 | p12 | `0x140B3530C` | `0F 84 FB 03 00 00` | `E9 FC 03 00 00 90` | **禁用更新检查**：恒走「已是最新版」路径（不发请求、不弹更新提示） |
 | p13 | `0x140B35F3D` | `80 BB D0 36 00 00 00 0F 84 96 00 00 00` | `90 ×13` | **全新安装不弹登录界面**：移除 `RefreshUI()` 中「mail 为空 → 构建登录界面」的条件，恒走编辑器路径 |
+| p14 | `0x140B32843` / `0x140B3EB38` | `80 BB D0 36 00 00 00 74 09` 等 | `90 ×9` ×2 | 移除声库刷新派发前的 mail 检查（防御性，配合 p11/p13） |
+| p15 | `0x140B36578`（实验性） | `48 8B 45 7F 80 38 00 ...` | `lea`/`mov` 注入 .data 凭据 | **实验性未完成**：内嵌默认凭据自动登录。应用字符串为特殊布局，实测序列化不正确，默认不启用 |
 
 ## 使用方法
 
@@ -59,9 +61,10 @@ powershell -ExecutionPolicy Bypass -File patches\deploy_patch.ps1
 ├── patches/
 │   ├── apply_all_patch.ps1      # p1-p7（播放限制）
 │   ├── apply_export_patch.ps1   # p8-p10（导出限制）
-│   ├── apply_auth_patch.ps1     # p11+p13（跳过登录 / 新装不弹登录界面）
+│   ├── apply_auth_patch.ps1     # p11+p13+p14（跳过登录 / 新装不弹登录界面）
 │   ├── apply_update_patch.ps1   # p12（禁用更新检查）
-│   ├── verify_final.ps1         # 校验全部 13 处补丁
+│   ├── seed_config.ps1          # 全新安装写入 config.json 种子（声库列表所需凭据）
+│   ├── verify_final.ps1         # 校验全部补丁
 │   └── deploy_patch.ps1         # 部署到 Program Files（需管理员）
 ├── tools/
 │   ├── capture_script.txt       # x64dbg 捕获脚本（-cf 参数运行）
@@ -78,5 +81,6 @@ powershell -ExecutionPolicy Bypass -File patches\deploy_patch.ps1
 - **声库下载**：`GET https://cdn.voisona.com/voice/<id>/<version>/<id>.tsnvoice`
 - **音源加密**：libsodium `crypto_secretstream_xchacha20poly1305`，密钥 = `BLAKE2b-256(fmix32_mix(SHA-256 IV), key="TSVoiceEncKey001")` = `B3F724B6F59962D5DF2D910245E6AA20EA5D427BABC8F3BE789F8ABA30E39C70`
 - **设备绑定**：`GetComputerNameExW`/`GetVolumeInformationW` 指纹 + 每账号设备数上限（`activation_limit_exceeded`）
-- **登录凭证**：`Host\config.json` 中 `mail` + `license_key`（64 hex）即登录凭证 —— `license_key` 实为密码，启动时自动 `POST` 登录换取 JWT，再拉取声库列表并为当前声库激活试用（`POST trial_licenses`，请求体 `{"email","voice","version","type"}`）
-- **全新安装说明**：p13 后无配置也能进编辑器，但声库列表来自服务器（需账号登录），故需保留 `config.json` 中的 `mail`/`license_key` 才有声库列表
+- **登录凭证**：`Host\config.json` 中 `mail` + `license_key`（64 hex）即登录凭证 —— `license_key` 实为密码，启动时自动 `POST /api/v1/auth/token/` 登录换取 JWT，再依次 `POST /api/v1/auth/token/verify/`、`POST /api/v1/auth/activate/`（设备注册）、`POST /api/v1/auth/activate/voice/`（声库试用激活，请求体 `{"email","voice","version","type"}`）
+- **声库列表来源**：列表 = 本地 `voices\Singer\<id>` 目录 + 账号许可信息；启动时**没有**独立的声库列表请求，列表在登录/激活回调链完成后由本地扫描构建（按需读取各声库图标）。因此无凭据的裸装无法列出本地声库
+- **全新安装说明**：p13 后无配置也能进编辑器；声库列表依赖账号凭据，请用 `patches\seed_config.ps1` 写入 `config.json` 种子（写入 mail/license_key 后应用自动登录并列出全部本地声库）
