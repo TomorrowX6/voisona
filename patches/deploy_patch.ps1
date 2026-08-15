@@ -17,7 +17,8 @@ try {
   $c13 = & $hex (0x400+(0x140B35F3D-0x140001000)) 13
   $c14 = & $hex (0x400+(0x140B32843-0x140001000)) 9
   $c16 = & $hex (0x400+(0x14013D5C0-0x140001000)) 3
-  "source checks: p1=$c1 p8=$c8 p9=$c9 p11=$c11 p13=$c13 p14=$c14 p16=$c16" | Out-File $log -Append
+  $c17 = & $hex (0x400+(0x1409F4425-0x140001000)) 5
+  "source checks: p1=$c1 p8=$c8 p9=$c9 p11=$c11 p13=$c13 p14=$c14 p16=$c16 p17=$c17" | Out-File $log -Append
   if($c1 -ne '66 0F 2F 05 76 C1 6A 00'){ "abort: p1 wrong" | Out-File $log -Append; exit 1 }
   if($c8 -ne 'B1 01 90'){ "abort: p8 wrong" | Out-File $log -Append; exit 1 }
   if($c9 -ne '90 90 90 90 90 90'){ "abort: p9 wrong" | Out-File $log -Append; exit 1 }
@@ -25,6 +26,7 @@ try {
   if($c13 -ne '90 90 90 90 90 90 90 90 90 90 90 90 90'){ "abort: p13 wrong" | Out-File $log -Append; exit 1 }
   if($c14 -ne '90 90 90 90 90 90 90 90 90'){ "abort: p14 wrong" | Out-File $log -Append; exit 1 }
   if($c16 -ne '30 C0 C3'){ "abort: p16 wrong" | Out-File $log -Append; exit 1 }
+  if($c17 -ne 'C6 44 24 20 00'){ "abort: p17 wrong" | Out-File $log -Append; exit 1 }
 
   Copy-Item $src $dst -Force
   "copied" | Out-File $log -Append

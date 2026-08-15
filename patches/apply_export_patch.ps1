@@ -44,3 +44,13 @@ else {
   [System.IO.File]::WriteAllBytes($exe, $bytes)
   Write-Output "#16 0x14013D5C0: IsTrial -> always false (purchased)"
 }
+
+# #17: trial-license flag -> 0 (records parsed from trial_licenses marked non-trial)
+$fo17 = 0x400 + (0x1409F4425 - 0x140001000)
+$o17 = ($bytes[$fo17..($fo17+4)] | ForEach-Object { $_.ToString('X2') }) -join ' '
+if($o17 -ne 'C6 44 24 20 01'){ Write-Output "MISMATCH #17: $o17"; exit 1 }
+else {
+  $bytes[$fo17+4] = 0x00
+  [System.IO.File]::WriteAllBytes($exe, $bytes)
+  Write-Output "#17 0x1409F4425: trial_licenses flag 1 -> 0 (badge shows purchased)"
+}
