@@ -1,0 +1,5 @@
+patches/VoiSona.exe
+patches/VoiSona.exe.orig
+patches/*.bak
+patches/deploy_log.txt
+*.log

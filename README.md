@@ -30,6 +30,7 @@ VoiSona (Techno-Speech, inc.) v1.18.0.5 的 DRM/API 逆向分析成果与试用�
 | p10 | `0x140B0F260` | `F2 0F 59 05 88 8B 69 00` | `F2 0F 59 05 C8 8D 69 00` | 导出时长计算 ×10 → ×100000 |
 | p11 | `0x140A01A60` | `48 89 5C 24 08 ...` | `B0 01 C3` + `90×91` | **跳过登录**：`isAuthenticated()` 恒返回 true |
 | p12 | `0x140B3530C` | `0F 84 FB 03 00 00` | `E9 FC 03 00 00 90` | **禁用更新检查**：恒走「已是最新版」路径（不发请求、不弹更新提示） |
+| p13 | `0x140B35F3D` | `80 BB D0 36 00 00 00 0F 84 96 00 00 00` | `90 ×13` | **全新安装不弹登录界面**：移除 `RefreshUI()` 中「mail 为空 → 构建登录界面」的条件，恒走编辑器路径 |
 
 ## 使用方法
 
@@ -41,6 +42,8 @@ Copy-Item "C:\Program Files\Techno-Speech\VoiSona\VoiSona.exe" "VoiSona.exe.bak"
 Copy-Item "C:\Program Files\Techno-Speech\VoiSona\VoiSona.exe" .\VoiSona.exe
 powershell -ExecutionPolicy Bypass -File patches\apply_all_patch.ps1
 powershell -ExecutionPolicy Bypass -File patches\apply_export_patch.ps1
+powershell -ExecutionPolicy Bypass -File patches\apply_auth_patch.ps1
+powershell -ExecutionPolicy Bypass -File patches\apply_update_patch.ps1
 powershell -ExecutionPolicy Bypass -File patches\verify_final.ps1
 
 # 3. 部署回 Program Files（需管理员）
@@ -56,9 +59,9 @@ powershell -ExecutionPolicy Bypass -File patches\deploy_patch.ps1
 ├── patches/
 │   ├── apply_all_patch.ps1      # p1-p7（播放限制）
 │   ├── apply_export_patch.ps1   # p8-p10（导出限制）
-│   ├── apply_auth_patch.ps1     # p11（跳过登录）
+│   ├── apply_auth_patch.ps1     # p11+p13（跳过登录 / 新装不弹登录界面）
 │   ├── apply_update_patch.ps1   # p12（禁用更新检查）
-│   ├── verify_final.ps1         # 校验全部 10 处补丁
+│   ├── verify_final.ps1         # 校验全部 13 处补丁
 │   └── deploy_patch.ps1         # 部署到 Program Files（需管理员）
 ├── tools/
 │   ├── capture_script.txt       # x64dbg 捕获脚本（-cf 参数运行）
@@ -75,3 +78,5 @@ powershell -ExecutionPolicy Bypass -File patches\deploy_patch.ps1
 - **声库下载**：`GET https://cdn.voisona.com/voice/<id>/<version>/<id>.tsnvoice`
 - **音源加密**：libsodium `crypto_secretstream_xchacha20poly1305`，密钥 = `BLAKE2b-256(fmix32_mix(SHA-256 IV), key="TSVoiceEncKey001")` = `B3F724B6F59962D5DF2D910245E6AA20EA5D427BABC8F3BE789F8ABA30E39C70`
 - **设备绑定**：`GetComputerNameExW`/`GetVolumeInformationW` 指纹 + 每账号设备数上限（`activation_limit_exceeded`）
+- **登录凭证**：`Host\config.json` 中 `mail` + `license_key`（64 hex）即登录凭证 —— `license_key` 实为密码，启动时自动 `POST` 登录换取 JWT，再拉取声库列表并为当前声库激活试用（`POST trial_licenses`，请求体 `{"email","voice","version","type"}`）
+- **全新安装说明**：p13 后无配置也能进编辑器，但声库列表来自服务器（需账号登录），故需保留 `config.json` 中的 `mail`/`license_key` 才有声库列表
