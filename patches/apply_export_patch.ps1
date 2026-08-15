@@ -1,4 +1,4 @@
-﻿$exe = Join-Path $PSScriptRoot "VoiSona.exe"
+$exe = Join-Path $PSScriptRoot "VoiSona.exe"
 $bytes = [System.IO.File]::ReadAllBytes($exe)
 $ok = $true
 $TARGET = 0x1411A8030
@@ -31,3 +31,16 @@ if($ok){
   [System.IO.File]::WriteAllBytes($exe, $bytes)
   Write-Output "PATCHES #8-#10 APPLIED"
 } else { Write-Output "ABORTED" }
+
+# #16: IsTrial() -> always false (all voices appear as purchased)
+# 0x14013D5C0: map-lookup "is voice in trial list" (+ magic hash 0xC48682A2 checks)
+$fo16 = 0x400 + (0x14013D5C0 - 0x140001000)
+$o16 = ($bytes[$fo16..($fo16+8)] | ForEach-Object { $_.ToString('X2') }) -join ' '
+if($o16 -ne '48 89 5C 24 08 57 48 83 EC'){ Write-Output "MISMATCH #16: $o16"; exit 1 }
+else {
+  # xor al,al; ret; NOP x6
+  $bytes[$fo16]=0x30; $bytes[$fo16+1]=0xC0; $bytes[$fo16+2]=0xC3
+  for($i=3;$i -lt 9;$i++){ $bytes[$fo16+$i]=0x90 }
+  [System.IO.File]::WriteAllBytes($exe, $bytes)
+  Write-Output "#16 0x14013D5C0: IsTrial -> always false (purchased)"
+}
