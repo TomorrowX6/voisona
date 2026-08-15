@@ -54,3 +54,27 @@ else {
   [System.IO.File]::WriteAllBytes($exe, $bytes)
   Write-Output "#17 0x1409F4425: trial_licenses flag 1 -> 0 (badge shows purchased)"
 }
+
+# #18: redirect trial_licenses records into the catalog container
+# (catalog=main list, trial section ends up empty -> voices appear in main list)
+$fo18a = 0x400 + (0x1409F4442 - 0x140001000)
+$fo18b = 0x400 + (0x1409F4446 - 0x140001000)
+$fo18c = 0x400 + (0x1409F4458 - 0x140001000)
+$fo18d = 0x400 + (0x1409F447F - 0x140001000)
+$o18a = ($bytes[$fo18a..($fo18a+3)] | ForEach-Object { $_.ToString('X2') }) -join ' '
+$o18b = ($bytes[$fo18b..($fo18b+3)] | ForEach-Object { $_.ToString('X2') }) -join ' '
+$o18c = ($bytes[$fo18c..($fo18c+6)] | ForEach-Object { $_.ToString('X2') }) -join ' '
+$o18d = ($bytes[$fo18d..($fo18d+3)] | ForEach-Object { $_.ToString('X2') }) -join ' '
+if($o18a -ne '49 8B 45 38' -or $o18b -ne '49 3B 45 40' -or $o18c -ne '49 81 45 38 A0 00 00' -or $o18d -ne '49 8D 4D 30'){ Write-Output "MISMATCH #18: $o18a/$o18b/$o18c/$o18d"; exit 1 }
+else {
+  $bytes[$fo18a+3] = 0x20  # [r13+0x38] -> [r13+0x20]
+  $bytes[$fo18b+3] = 0x28  # [r13+0x40] -> [r13+0x28]
+  $bytes[$fo18c+3] = 0x20  # add [r13+0x38] -> [r13+0x20]
+  $bytes[$fo18d+3] = 0x18  # lea [r13+0x30] -> [r13+0x18]
+  [System.IO.File]::WriteAllBytes($exe, $bytes)
+  Write-Output "#18: trial_licenses -> catalog container (voices in main list, no trial section)"
+}
+
+
+
+
